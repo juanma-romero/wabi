@@ -52,7 +52,7 @@ interface DisplayMessage {
   text: string;
   timestamp: number; // Convertido a número para ordenar
   originalData: any; // Mantener los datos originales del webhook para depuración
-}
+} 
 
 export default function Home() {
   const [displayMessages, setDisplayMessages] = useState<DisplayMessage[]>([]);
