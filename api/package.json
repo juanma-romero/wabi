@@ -4,17 +4,20 @@
     "description": "API para conectar whatsapp con dashboar de administracion",
     "main": "server.js",
     "scripts": {
-      "start": "node server.js"
+        "start": "node server.js"
     },
     "type": "module",
     "dependencies": {
-      "express": "^5.1.0",
-      "body-parser": "^2.2.0",
-      "crypto-js": "^4.2.0",
-      "dotenv":"^16.5.0"
+        "axios": "^1.10.0",
+        "body-parser": "^2.2.0",
+        "cors": "^2.8.5",
+        "crypto-js": "^4.2.0",
+        "dotenv": "^16.5.0",
+        "express": "^5.1.0",
+        "mongodb": "^6.17.0"
     },
     "engines": {
-      "node": "22.12.0"
-    },    
-    "license": "MIT"    
-  }
+        "node": "^22.12.0"
+    },
+    "license": "MIT"
+}
