@@ -1,4 +1,4 @@
-{
+{ 
     object: 'whatsapp_business_account',
     entry: [ { id: '0', changes: [Array] } ]
   }
