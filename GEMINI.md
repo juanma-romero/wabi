@@ -2,7 +2,7 @@
 
 ## Objetivo
 
-Usar Whatsapp Bussines y su API, para administrar y gestionar el comercio Voraz ayudado por IA Gemini para tomar pedidos, pagos, cobros, inventario, etc
+Usar Whatsapp Bussines y su API, para administrar y gestionar el comercio Voraz ayudado por IA Gemini para registrar pagos, cobros, inventario, etc. Realiza api calls a Odoo para registrar las operaciones
 
 ## Arquitectura
 

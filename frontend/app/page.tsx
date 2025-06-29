@@ -59,7 +59,7 @@ export default function Home() {
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
 
-  const apiBaseUrl = 'http://localhost:3000'; // Your API server
+  const apiBaseUrl = 'http://localhost:443'; // Your API server
 
   const fetchMessages = useCallback(async () => {
     setIsLoading(true);
