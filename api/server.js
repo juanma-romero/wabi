@@ -33,9 +33,48 @@ async function connectToMongo() {
 connectToMongo();
 
 // --- Nueva función para manejar el comando '/listado' ---
-function handleListadoRequest(from) {
-  console.log('listado pedido');
-  // Aquí se podría agregar lógica para enviar una respuesta específica si se quisiera.
+async function handleListadoRequest(from) {
+  console.log('Recibido comando /listado. Realizando llamada a Odoo Service...');
+  try {
+    // La URL de tu servicio FastAPI que se conecta a Odoo.
+    // Asegúrate de que el puerto (8000) sea el correcto.
+    const odooServiceUrl = 'http://127.0.0.1:8000/pedidos/pendientes/';
+
+    const response = await axios.get(odooServiceUrl);
+    const pedidos = response.data;
+
+    // 1. Imprimir el JSON de respuesta en la consola de server.js
+    console.log('Respuesta de Odoo Service:');
+    console.log(JSON.stringify(pedidos, null, 2));
+
+    // 2. (Opcional pero recomendado) Enviar una confirmación o resumen por WhatsApp
+    const mensajeRespuesta = `Se encontraron ${pedidos.cantidad} pedidos pendientes. Revisa la consola del servidor para más detalles.`;
+
+    await axios({
+      method: 'POST',
+      url: `https://graph.facebook.com/v19.0/${PHONE_NUMBER_ID}/messages`,
+      headers: {
+        'Authorization': `Bearer ${WHATSAPP_TOKEN}`,
+        'Content-Type': 'application/json'
+      },
+      data: {
+        messaging_product: 'whatsapp',
+        to: from,
+        text: { body: mensajeRespuesta }
+      }
+    });
+
+  } catch (error) {
+    console.error('Error al llamar al servicio de Odoo:', error.response ? JSON.stringify(error.response.data, null, 2) : error.message);
+    
+    // Notificar el error por WhatsApp
+    await axios({
+      method: 'POST',
+      url: `https://graph.facebook.com/v19.0/${PHONE_NUMBER_ID}/messages`,
+      headers: { 'Authorization': `Bearer ${WHATSAPP_TOKEN}`, 'Content-Type': 'application/json' },
+      data: { messaging_product: 'whatsapp', to: from, text: { body: 'Hubo un error al consultar los pedidos pendientes.' } }
+    }).catch(sendError => console.error('Error al enviar mensaje de error por WhatsApp:', sendError.response ? sendError.response.data : sendError.message));
+  }
 }
 
 app.get("/", function (request, response) {
@@ -86,7 +125,7 @@ app.post("/webhook", async function (request, response) {
 
         // --- Lógica de comandos ---
         if (msg_body === '/listado') {
-          handleListadoRequest(from);
+          await handleListadoRequest(from);
         } else {
           // Lógica simple de respuesta automática
           try {
