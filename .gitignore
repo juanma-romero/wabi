@@ -3,7 +3,7 @@
 # dependencies
 /node_modules
 /node_modules/**/
-
+/odoo-service/.venv/**/
 /.pnp
 .pnp.*
 .yarn/*
