@@ -1,81 +1,17 @@
 import express from 'express'
 import cors from 'cors'
-import dotenv from 'dotenv'
-import axios from 'axios'
-import pkg from 'body-parser'
-const { urlencoded, json } = pkg
-import { MongoClient } from 'mongodb'
+import axios from 'axios' 
 
 var app = express()
+app.use(express.json()) // Use express.json() instead of body-parser
 
 app.use(cors())
-app.use(urlencoded({ extended: false }));
-app.use(json())
 
 dotenv.config();
 const VERIFY_TOKEN = process.env.WEBHOOK_VERIFY_TOKEN
 const WHATSAPP_TOKEN = process.env.WHATSAPP_TOKEN
 const PHONE_NUMBER_ID = process.env.PHONE_NUMBER_ID
-const MONGODB_URI = process.env.MONGODB_URI
-
-const client = new MongoClient(MONGODB_URI);
-
-async function connectToMongo() {
-  try {
-    await client.connect();
-    console.log("Conectado a MongoDB");
-  } catch (err) {
-    console.error("Error al conectar a MongoDB", err);
-    process.exit(1);
-  }
-}
-
-connectToMongo();
-
-// --- Nueva función para manejar el comando '/listado' ---
-async function handleListadoRequest(from) {
-  console.log('Recibido comando /listado. Realizando llamada a Odoo Service...');
-  try {
-    // La URL de tu servicio FastAPI que se conecta a Odoo.
-    // Asegúrate de que el puerto (8000) sea el correcto.
-    const odooServiceUrl = 'http://127.0.0.1:8000/pedidos/pendientes/';
-
-    const response = await axios.get(odooServiceUrl);
-    const pedidos = response.data;
-
-    // 1. Imprimir el JSON de respuesta en la consola de server.js
-    console.log('Respuesta de Odoo Service:');
-    console.log(JSON.stringify(pedidos, null, 2));
-
-    // 2. (Opcional pero recomendado) Enviar una confirmación o resumen por WhatsApp
-    const mensajeRespuesta = `Se encontraron ${pedidos.cantidad} pedidos pendientes. Revisa la consola del servidor para más detalles.`;
-
-    await axios({
-      method: 'POST',
-      url: `https://graph.facebook.com/v19.0/${PHONE_NUMBER_ID}/messages`,
-      headers: {
-        'Authorization': `Bearer ${WHATSAPP_TOKEN}`,
-        'Content-Type': 'application/json'
-      },
-      data: {
-        messaging_product: 'whatsapp',
-        to: from,
-        text: { body: mensajeRespuesta }
-      }
-    });
-
-  } catch (error) {
-    console.error('Error al llamar al servicio de Odoo:', error.response ? JSON.stringify(error.response.data, null, 2) : error.message);
-    
-    // Notificar el error por WhatsApp
-    await axios({
-      method: 'POST',
-      url: `https://graph.facebook.com/v19.0/${PHONE_NUMBER_ID}/messages`,
-      headers: { 'Authorization': `Bearer ${WHATSAPP_TOKEN}`, 'Content-Type': 'application/json' },
-      data: { messaging_product: 'whatsapp', to: from, text: { body: 'Hubo un error al consultar los pedidos pendientes.' } }
-    }).catch(sendError => console.error('Error al enviar mensaje de error por WhatsApp:', sendError.response ? sendError.response.data : sendError.message));
-  }
-}
+const BACKEND_URL = 'http://34.44.100.213' // URL of your backend VM
 
 app.get("/", function (request, response) {
   response.send('Simple WhatsApp Webhook tester</br>There is no front-end, see server.js for implementation!');
@@ -92,7 +28,7 @@ app.get('/webhook', function (req, res) {
   }
 })
 
-app.post("/webhook", async function (request, response) {
+app.post("/webhook", async (request, response) => {
   console.log('Incoming webhook body:', JSON.stringify(request.body, null, 2));
 
   // --- Lógica para filtrar y guardar mensajes ---
@@ -106,67 +42,56 @@ app.post("/webhook", async function (request, response) {
     // Lista de remitentes permitidos por su wa_id
     const allowedSenders = ["595985214420", "595983422117"]; // 'Voraz' y 'zuld.'
 
-    if (allowedSenders.includes(contact.wa_id)) {
-      // Es un mensaje de un remitente permitido, lo guardamos
-      const db = client.db("wabi");
-      const messagesCollection = db.collection("mensajes");
+    if (allowedSenders.includes(contact.wa_id) && message.type === "text") {
+      // Forward the message to the backend
       try {
-        await messagesCollection.insertOne(request.body);
-        console.log(`Mensaje de ${contact.profile.name} (${contact.wa_id}) guardado en MongoDB`);
-      } catch (err) {
-        console.error("Error al guardar el mensaje en MongoDB", err);
-      }
+        const backendResponse = await axios.post(`${BACKEND_URL}/whatsapp-message`, {
+          contact: contact,
+          message: message
+        });
 
-      // --- Lógica para procesar y responder mensajes ---
-      // Verifica si es un mensaje de texto para enviar una respuesta
-      if (message.type === "text") {
-        const from = message.from; // Número de teléfono del remitente.
-        const msg_body = message.text.body.trim(); // El texto del mensaje.
-
-        // --- Lógica de comandos ---
-        if (msg_body === '/listado') {
-          await handleListadoRequest(from);
-        } else {
-          // Lógica simple de respuesta automática
-          try {
-            await axios({
-              method: 'POST',
-              url: `https://graph.facebook.com/v19.0/${PHONE_NUMBER_ID}/messages`,
-              headers: {
-                'Authorization': `Bearer ${WHATSAPP_TOKEN}`,
-                'Content-Type': 'application/json'
-              },
-              data: {
-                messaging_product: 'whatsapp',
-                to: from,
-                text: { body: 'Hola! Recibí tu mensaje: "' + msg_body + '"' }
-              }
-            });
-            console.log('¡Respuesta enviada exitosamente!');
-          } catch (error) {
-            console.error('Error al enviar el mensaje:', error.response ? error.response.data : error.message);
-          }
+        // If the backend provides a response, forward it to WhatsApp
+        if (backendResponse.data.reply) {
+          await sendWhatsAppMessage(message.from, backendResponse.data.reply);
         }
+      } catch (error) {
+        console.error('Error forwarding message to backend:', error.response ? error.response.data : error.message);
+        // Optionally, send an error message back to the user
+        await sendWhatsAppMessage(message.from, "Error processing your request.");
       }
     } else {
-      console.log(`Mensaje de un remitente no permitido (${contact.wa_id}), no se guarda en DB.`);
+      console.log(`Message from an unauthorized sender or not a text message: ${contact?.wa_id}`);
     }
   } else if (change?.value?.statuses) {
-    console.log('Webhook de estado recibido, no se guarda en DB.');
+    console.log('Status update received:', JSON.stringify(change.value.statuses, null, 2));
   } else {
-    console.log('Webhook no es un mensaje o no tiene la estrutura esperada, no se guarda en DB.');
+    console.log('Unknown webhook format:', JSON.stringify(request.body, null, 2));
   }
 
   response.sendStatus(200);
 });
 
-// New endpoint to get stored messages
-app.get('/get-messages', async (req, res) => {
-  const db = client.db("wabi");
-  const messagesCollection = db.collection("mensajes");
-  const messages = await messagesCollection.find({}).toArray();
-  res.json(messages);
-});
+// Helper function to send a WhatsApp message
+async function sendWhatsAppMessage(to, body) {
+  try {
+    await axios({
+      method: 'POST',
+      url: `https://graph.facebook.com/v19.0/${PHONE_NUMBER_ID}/messages`,
+      headers: {
+        'Authorization': `Bearer ${WHATSAPP_TOKEN}`,
+        'Content-Type': 'application/json'
+      },
+      data: {
+        messaging_product: 'whatsapp',
+        to: to,
+        text: { body: body }
+      }
+    });
+    console.log(`Sent message to ${to}: ${body}`);
+  } catch (error) {
+    console.error('Error sending WhatsApp message:', error.response ? error.response.data : error.message);
+  }
+}
 
 var listener = app.listen(process.env.PORT, function () {
   console.log('Your app is listening on port ' + listener.address().port);
