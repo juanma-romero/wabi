@@ -1,6 +1,7 @@
 import express from 'express'
 import cors from 'cors'
-import axios from 'axios' 
+import axios from 'axios'
+import dotenv from 'dotenv'
 
 var app = express()
 app.use(express.json()) // Use express.json() instead of body-parser
@@ -11,7 +12,7 @@ dotenv.config();
 const VERIFY_TOKEN = process.env.WEBHOOK_VERIFY_TOKEN
 const WHATSAPP_TOKEN = process.env.WHATSAPP_TOKEN
 const PHONE_NUMBER_ID = process.env.PHONE_NUMBER_ID
-const BACKEND_URL = 'http://34.44.100.213' // URL of your backend VM
+const BACKEND_URL = 'http://34.44.100.213:3000' // URL of backend VM
 
 app.get("/", function (request, response) {
   response.send('Simple WhatsApp Webhook tester</br>There is no front-end, see server.js for implementation!');
@@ -45,7 +46,7 @@ app.post("/webhook", async (request, response) => {
     if (allowedSenders.includes(contact.wa_id) && message.type === "text") {
       // Forward the message to the backend
       try {
-        const backendResponse = await axios.post(`${BACKEND_URL}/whatsapp-message`, {
+        const backendResponse = await axios.post(`${BACKEND_URL}/whatsapp-inbound`, {
           contact: contact,
           message: message
         });
