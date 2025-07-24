@@ -12,7 +12,7 @@ dotenv.config();
 const VERIFY_TOKEN = process.env.WEBHOOK_VERIFY_TOKEN
 const WHATSAPP_TOKEN = process.env.WHATSAPP_TOKEN
 const PHONE_NUMBER_ID = process.env.PHONE_NUMBER_ID
-const BACKEND_URL = 'http://34.44.100.213:3000' // URL of backend VM
+const BACKEND_URL = 'http://34.44.100.213:3000/api' // URL of backend VM
 
 app.get("/", function (request, response) {
   response.send('Simple WhatsApp Webhook tester</br>There is no front-end, see server.js for implementation!');
@@ -95,5 +95,6 @@ async function sendWhatsAppMessage(to, body) {
 }
 
 var listener = app.listen(process.env.PORT, function () {
+  // puerto 4000 en .env
   console.log('Your app is listening on port ' + listener.address().port);
 })
