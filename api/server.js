@@ -47,11 +47,11 @@ app.post("/webhook", async (request, response) => {
       // Forward the message to the backend
       try {
         console.log(`Forwarding message from ${contact.wa_id}: ${message.text.body}`);
-        /*const backendResponse = await axios.post(`${BACKEND_URL}/whatsapp-inbound`, {
-          contact: contact,
-          message: message
-        });
-*/
+        const backendResponse = await axios.post(`${BACKEND_URL}/whatsapp-inbound`, {
+          wa_id: contact.wa_id,
+          message: message.text.body
+        })
+
         // If the backend provides a response, forward it to WhatsApp
         /*if (backendResponse.data.reply) {
           await sendWhatsAppMessage(message.from, backendResponse.data.reply);
