@@ -14,6 +14,9 @@
 !.yarn/plugins
 !.yarn/releases
 !.yarn/versions
+/api/node_modules
+/api/node_modules/**/
+
 
 # testing
 /coverage
